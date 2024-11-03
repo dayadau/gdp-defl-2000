@@ -5,7 +5,7 @@ author: "Daya Ha-Thanh-Van Dau"
 ---
 The graph is used for the M-SD 1 7102: Development Economics at Hochschule Rhein-Waal. Therefore the project cannot be publicly on GitHub. If you want to re-run the code, please first download the Excel file: **historical_classification_by_income.xlsx** from the repository.
 
-It aim to observe the differences in GDP deflation development grouped by income level in 2000. That is, freeze the development of the countries and observe only the GDP deflation development.
+It aimsx to observe the differences in GDP deflation development grouped by income level in 2000. That is, freeze the development of the countries and observe only the GDP deflation development.
 
 More projects at <https://github.com/dayadau>
 
@@ -24,6 +24,8 @@ library(simputation)
 library(imputeTS)
 ```
 
+## Prepare income class 2000 classification
+The classification data is taken out from Excel sheet provided by World Bank DataBank. 
 ```{r}
 Inc2000 <- read_excel("historical_classification_by_income.xlsx", "Country Analytical History") 
 
@@ -51,19 +53,6 @@ gdpdfl_2000 <- WDI_df %>%
   select(country, iso3c, year, GDPdefl, income) %>% 
   subset(income != "Aggregates" & !(iso3c == "COD" & year == "2000" ))
 
-```
-
-## Test - Low Income group
-```{r}
-'gdpdfl_2000_LIC <- gdpdfl_2000 %>%
-  subset(income == "Low income" & year == "2000")
-
-ggplot(gdpdfl_2000_LIC, aes(x = country, y = GDPdefl)) +
-  geom_point(size = 3) +
-  labs(title = "GDP Deflator for Low Income Countries in 2000", 
-       x = "Country", 
-       y = "GDP Deflator") +
-  theme_minimal()'
 ```
 
 # Filter out NA
@@ -109,31 +98,6 @@ ggplot(simpdataGDPdeflator_2000, aes(x = year, y = GDPdefl, color = country)) +
 
 summary(simpdataGDPdeflator_2000)
 
-```
-
-## Test - Spline
-```{r}
-'spline_simpdataGDPdeflator_2000$GDPdefl <- na_interpolation(simpdataGDPdeflator_2000$GDPdefl, option = "spline")
-
-summary(spline_simpdataGDPdeflator_2000)
-
-#After imputation
-ggplot(spline_simpdataGDPdeflator_2000, aes(x = year, y = GDPdefl, color = country)) +
-geom_line(stat = "identity", show.legend = F)
-
-#Building Mean
-spline_GDPdeflmean_2000 <- spline_simpdataGDPdeflator_2000 %>%
-  group_by(year, incomeold) %>%
-  summarise(mean_GDPdefl = mean(GDPdefl, na.rm=T))
-
-#Visualisation
-ggplot () + 
-  geom_line(data=spline_GDPdeflmean_2000, aes(x=year, y=mean_GDPdefl, color = incomeold), size= 1.2)+
-  labs(title="Inflation, GDP deflator")+
-  ylab("GDP deflator (annual %)")+xlim(2000, 2022)+ylim(-5,30)+
-  xlab("Year")+
-  theme_bw()+
-  scale_colour_brewer (breaks=c("Low income (2000)", "Lower middle income (2000)", "Upper middle income (2000)", "High income (2000)"), palette = "Spectral")'
 ```
 
 # Visualisation
