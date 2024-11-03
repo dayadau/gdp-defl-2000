@@ -1,5 +1,5 @@
 # Executive Summary
-The graph is used for the Development Economics lecture therefore the project cannot be publicly on GitHub. 
+The graph is used for the Development Economics lecture therefore the project cannot be publicly on GitHub. If you want to re-run the code, please first download the Excel file: "historical_classification_by_income.xlsx"
 
 ## Objectives
 Aim to observe the differences in GDP deflation development grouped by income level in 2000. That is, freeze the development of the countries and observe only the GDP deflation development.
