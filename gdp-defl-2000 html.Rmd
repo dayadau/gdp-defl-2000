@@ -1,0 +1,142 @@
+---
+title: "GDP Deflator Development 2000-2022"
+author: "Daya Ha-Thanh-Van Dau"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The graph is used for the M-SD 1 7102: Development Economics at Hochschule Rhein-Waal. Therefore the project cannot be publicly on GitHub. If you want to re-run the code, please first download the Excel file: **historical_classification_by_income.xlsx** from the [**repository**](https://gitfront.io/r/dayadau/eFPFzX3NCKxD/gdp-defl-develop-income-level/).
+
+It aims to observe the differences in GDP deflation development grouped by income level in 2000. That is, freeze the development of the countries and observe only the GDP deflation development.
+
+More projects at [**GitHub Profile**](https://github.com/dayadau)
+
+Detailed Portfolio on [**Notion Website**](https://www.notion.so/dayadau/Daya-Ha-Thanh-Van-Dau-7f4cdf7c20ad48619025e7ee64d683b6?pvs=4)
+
+# Code with explanation
+## Load libraries
+```{r}
+library(dplyr)
+library(readr)
+library(WDI)
+library(tidyr)
+library(ggplot2)
+library(readxl)
+library(cellranger)
+library(simputation)
+library(imputeTS)
+library(tinytex)
+library(pandoc)
+```
+
+## Prepare income class 2000 classification
+The classification data is taken out from Excel sheet provided by World Bank DataBank. 
+
+```{r}
+Inc2000 <- read_excel("historical_classification_by_income.xlsx", "Country Analytical History") 
+
+income2000 <- Inc2000[c(1,11:238),c(1,2,16)]
+
+income2000 <- income2000 %>% 
+  rename(incomeold = ...16) %>%
+  rename(iso3c = ...1) %>%
+  filter(incomeold!="..")
+
+income2000$incomeold <- factor(
+  income2000$incomeold, 
+  levels = c("L", "LM", "UM", "H"), 
+  labels = c("Low income (2000)", 
+             "Lower middle income (2000)", 
+             "Upper middle income (2000)", 
+             "High income (2000)"))
+```
+
+## Load data
+Access to WDI databank for most updated data.
+```{r}
+if(!exists("WDI_df")) {
+  WDI_df <- WDI(indicator = c("NY.GDP.DEFL.KD.ZG"),
+              start = 2000,
+              end = 2022,
+              extra = TRUE)
+}
+```
+
+Rename and only select needed attributes.
+```{r}
+gdpdfl_2000 <- WDI_df %>%
+  rename(GDPdefl = NY.GDP.DEFL.KD.ZG) %>% 
+  select(country, iso3c, year, GDPdefl, income) %>% 
+  subset(income != "Aggregates" & !(iso3c == "COD" & year == "2000" ))
+
+```
+
+## Data Processing
+First will observe the missing value status of the dataset. Then decided how to filter out data then use linear regression to impute.
+
+### Filter out NA
+```{r}
+# income2000 is the data with the old income category
+merge_gdpdefl <- merge(gdpdfl_2000, income2000, by="iso3c", all.x=FALSE)
+
+# Check for missing values
+statsNA(merge_gdpdefl$GDPdefl)
+
+# Create group of countries only have 0 or 1 observations
+many_na_countries_2000 <- merge_gdpdefl %>%
+  filter(is.na(GDPdefl)) %>%
+  group_by(country) %>%
+  summarise(n()) %>%
+  filter(`n()` >= 23)
+
+# Filter out them from the main dataset
+many_na_countries_list_2000 <- many_na_countries_2000$country
+
+dataGDPdeflator_2000 <- merge_gdpdefl %>%
+  mutate(drop = ifelse(country %in% many_na_countries_list_2000, T, F)) %>%
+  filter(drop == F) %>%
+  select(-drop)
+
+statsNA(dataGDPdeflator_2000$GDPdefl)
+
+```
+
+### Imputation for NA
+```{r} 
+# Linear Regression approach
+
+simpdataGDPdeflator_2000 <- impute_lm(dataGDPdeflator_2000, GDPdefl ~ year*country) 
+
+## After imputation
+ggplot(simpdataGDPdeflator_2000, aes(x = year, y = GDPdefl, color = country)) +
+   geom_line(stat = "identity", show.legend = F) 
+
+summary(simpdataGDPdeflator_2000)
+
+```
+
+## Visualisation
+After process the dataset, first will transform by building mean then visualisa in the line graph.
+```{r pressure, echo=FALSE}
+# Building Mean
+GDPdeflmean_2000 <- simpdataGDPdeflator_2000 %>%
+  group_by(year, incomeold) %>%
+  summarise(mean_GDPdefl = mean(GDPdefl, na.rm=T))
+
+#Plot
+ggplot () + 
+  geom_line(data=GDPdeflmean_2000, aes(x=year, y=mean_GDPdefl, color = incomeold), size= 1.2)+
+  labs(title="Inflation, GDP deflator")+
+  ylab("GDP deflator (annual %)")+xlim(2000, 2022)+ylim(-5,30)+
+  xlab("Year")+
+  theme_bw()+
+  scale_colour_brewer (breaks=c("Low income (2000)", "Lower middle income (2000)", "Upper middle income (2000)", "High income (2000)"), palette = "Spectral")
+
+```
+
+
